@@ -28,12 +28,40 @@ public:
 
 private:
 
+	FVector GetAirResistance();
+
+	FVector GetRollingResistance();
+
+
 	void MoveForward(float Value);
 
 	void MoveRight(float Value);
 
+	//Units in KG
+	UPROPERTY(EditAnywhere)
+	float Mass = 1000;
+
+	UPROPERTY(EditAnywhere)
+	float DragCoefficient = 16;
+
+	UPROPERTY(EditAnywhere)
+	float RollingResistanceCoefficient = 0.015;
+
+	// The force applies to the car when throttle is fully down (N.)
+	UPROPERTY(EditAnywhere)
+	float MaxDrivingForce = 10000;
+
+	// Num if degrees rotated per second at full control throw(cm)
+	UPROPERTY(EditAnywhere)
+	float MinTuringRadius = 10;
+
 	FVector Velocity;
 
+	float Throttle;
 
-	
+	float SteeringThrow;
+
+	void UpdateLocation(float DeltaTime);
+
+	void ApplyRotation(float DeltaTime);
 };

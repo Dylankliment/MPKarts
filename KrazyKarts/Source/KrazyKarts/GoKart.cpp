@@ -3,6 +3,7 @@
 #include "GoKart.h"
 
 #include "Components/InputComponent.h"
+#include "Engine/World.h"
 
 
 // Sets default values
@@ -25,10 +26,19 @@ void AGoKart::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	//Multiplying here changes it from CMPS to MPS
-	FVector Translation = Velocity * 100 * DeltaTime;
+	FVector Force = GetActorForwardVector() * MaxDrivingForce * Throttle;
 
-	AddActorWorldOffset(Translation);
+	Force += GetAirResistance();
+
+	Force += GetRollingResistance();
+
+	FVector Acceleration = Force / Mass;
+
+	Velocity = Velocity + Acceleration * DeltaTime;
+
+
+	ApplyRotation(DeltaTime);
+	UpdateLocation(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -40,13 +50,49 @@ void AGoKart::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAxis("MoveRight", this, &AGoKart::MoveRight);
 }
 
+FVector AGoKart::GetAirResistance()
+{
+	return - Velocity.GetSafeNormal() * Velocity.SizeSquared() * DragCoefficient;
+}
+
+FVector AGoKart::GetRollingResistance()
+{
+	float AccelerationDueToGravity = -GetWorld()->GetGravityZ() / 100;
+
+	float NormalForce = Mass * AccelerationDueToGravity;
+	return -Velocity.GetSafeNormal() * RollingResistanceCoefficient * NormalForce;
+}
+
 void AGoKart::MoveForward(float Value)
 {
-	//CM per second
-	Velocity = GetActorForwardVector() *20 * Value;
+	Throttle = Value;
 }
 
 void AGoKart::MoveRight(float Value)
 {
+	SteeringThrow = Value;
+}
+
+void AGoKart::UpdateLocation(float DeltaTime)
+{
+	//Multiplying here changes it from CMPS to MPS
+	FVector Translation = Velocity * 100 * DeltaTime;
+
+	FHitResult HitResult;
+	AddActorWorldOffset(Translation, true, &HitResult);
+	if (HitResult.IsValidBlockingHit())
+	{
+		Velocity = FVector::ZeroVector;
+	}
+}
+
+void AGoKart::ApplyRotation(float DeltaTime)
+{
+	float DeltaLocation = FVector::DotProduct(GetActorForwardVector(), Velocity) * DeltaTime;
+	float RotationAngle = DeltaLocation / MinTuringRadius * SteeringThrow;
+	FQuat RotationDelta(GetActorUpVector(), RotationAngle);
+		
+	Velocity = RotationDelta.RotateVector(Velocity);
+	AddActorWorldRotation(RotationDelta);
 }
 
